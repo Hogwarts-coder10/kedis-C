@@ -14,10 +14,14 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # --- Public headers ---
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+# --- CDSA dependency (installed system-wide via `sudo cmake --install`) ---
+find_library(CDSA_LIB cdsa REQUIRED)
+
 # --- Main executable ---
 add_executable(kedis-c
     src/main.c
 )
+target_link_libraries(kedis-c PRIVATE ${CDSA_LIB})
 
 # --- Testing ---
 enable_testing()
