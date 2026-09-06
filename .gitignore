@@ -1,0 +1,70 @@
+# --- Build artifacts ---
+*.o
+*.obj
+*.lo
+*.slo
+*.ko
+*.elf
+*.out
+*.app
+*.exe
+*.dll
+*.so
+*.so.*
+*.dylib
+*.a
+*.la
+*.lai
+
+# --- Build directories ---
+/build/
+build-*/
+/bin/
+/obj/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.in
+*.ninja
+.ninja_log
+
+# --- Debug / profiling ---
+*.dSYM/
+*.su
+*.idb
+*.pdb
+core
+core.*
+*.gcda
+*.gcno
+*.gcov
+gmon.out
+callgrind.out.*
+massif.out.*
+*.log
+
+# --- Persistence / runtime data (Kedis-specific) ---
+*.aof
+*.rdb
+*.wal
+dump.*
+*.pid
+*.sock
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Package managers / dependency dirs (if any creep in later) ---
+/vendor/
+/deps/
+
+# --- Test artifacts ---
+/tests/tmp/
+*.test
