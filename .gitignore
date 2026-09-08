@@ -28,6 +28,7 @@ cmake_install.cmake
 Makefile.in
 *.ninja
 .ninja_log
+compile_commands.json
 
 # --- Debug / profiling ---
 *.dSYM/

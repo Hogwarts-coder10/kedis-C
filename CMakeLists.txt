@@ -20,6 +20,7 @@ find_library(CDSA_LIB cdsa REQUIRED)
 # --- Main executable ---
 add_executable(kedis-c
     src/main.c
+    src/object.c
 )
 target_link_libraries(kedis-c PRIVATE ${CDSA_LIB})
 
