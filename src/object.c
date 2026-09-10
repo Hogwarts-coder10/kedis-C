@@ -1,4 +1,6 @@
 #include "kedis-c/object.h"
+#include <CDSA/kstring.h>
+#include <CDSA/vector.h>
 #include <stdlib.h>
 
 KedisObject *kedis_create_int_object(long value) {
@@ -25,7 +27,7 @@ KedisObject *kedis_create_list_object(void) {
   return obj;
 }
 
-KedisObject *kedis_create_string_object(const char *value) {
+KedisObject *kedis_create_str_object(const char *value) {
   KedisObject *obj = malloc(sizeof(KedisObject));
   if (!obj)
     return NULL;
@@ -88,24 +90,51 @@ void kedis_free_object(KedisObject *obj) {
   case KEDIS_TYPE_STRING:
     cdsa_free_kstring(obj->data.str);
     break;
-  case KEDIS_TYPE_LIST:
+  case KEDIS_TYPE_LIST: {
     /*
-     * NOTE: this only frees the vector's own backing array, not
-     * the KedisObject* elements it holds. Whoever tears down a
-     * list is responsible for kedis_decr_ref'ing every element
-     * first (or wire that walk in here once the vector iterator
-     * is in play) — CDSA vectors don't own their element memory.
+     * cdsa_vector stores KedisObject* BY VALUE (memcpy'd into its
+     * backing array, per cdsa_push_vector's ownership note), so
+     * cdsa_next_vector yields a pointer INTO that array — i.e. a
+     * KedisObject**. Deref once to get the actual KedisObject*.
      */
+    cdsa_vector_iterator *it = cdsa_create_vector_iterator(obj->data.list);
+    if (it) {
+      void *slot;
+      while (cdsa_has_next_vector(it)) {
+        if (cdsa_next_vector(it, &slot) != CDSA_OK)
+          break;
+        kedis_decr_ref(*(KedisObject **)slot);
+      }
+      cdsa_free_vector_iterator(it);
+    }
     cdsa_free_vector(obj->data.list);
     break;
-  case KEDIS_TYPE_HASH:
+  }
+  case KEDIS_TYPE_HASH: {
     /*
-     * Same caveat as lists: cdsa_hashmap doesn't own its values
-     * (see hashmap.h ownership note), so stored KedisObject*
-     * values need decr_ref'ing by the caller before this runs.
+     * cdsa_hashmap stores the VALUE POINTER directly (per
+     * insert_hashmap's ownership note — "the hashmap only stores
+     * the pointer"), so cdsa_next_hashmap's out_value IS the
+     * KedisObject* itself — no extra deref, unlike the vector case.
+     *
+     * Keys are NOT freed here: per hashmap.h, the caller owns key
+     * memory and it must outlive the map. Kedis-C's keyspace layer
+     * is responsible for key string lifetime, not this object.
      */
+    cdsa_hashmap_iterator *it = cdsa_create_hashmap_iterator(obj->data.hash);
+    if (it) {
+      const char *key;
+      void *value;
+      while (cdsa_has_next_hashmap(it)) {
+        if (cdsa_next_hashmap(it, &key, &value) != CDSA_OK)
+          break;
+        kedis_decr_ref((KedisObject *)value);
+      }
+      cdsa_free_hashmap_iterator(it);
+    }
     cdsa_free_hashmap(obj->data.hash);
     break;
+  }
   }
 
   free(obj);
