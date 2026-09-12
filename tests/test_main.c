@@ -1,6 +1,9 @@
+#include "kedis-c/command.h"
+#include "kedis-c/keyspace.h"
 #include "kedis-c/object.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 /*
  * Kedis-C — object model tests
@@ -64,11 +67,68 @@ static void test_hash_object_decrefs_children(void) {
   printf("test_hash_object_decrefs_children passed\n");
 }
 
+static void test_keyspace_set_get_overwrite(void) {
+  Keyspace *ks = kedis_keyspace_create(8);
+
+  kedis_execute_command(ks, "SET foo 42");
+  KedisObject *v = kedis_keyspace_get(ks, "foo");
+  assert(v && v->type == KEDIS_TYPE_INT && v->data.ival == 42);
+
+  /* Overwrite with a string — old int object should be decref'd/freed,
+   * not leaked, and the key string should be reused, not re-strdup'd. */
+  kedis_execute_command(ks, "SET foo hello");
+  v = kedis_keyspace_get(ks, "foo");
+  assert(v && v->type == KEDIS_TYPE_STRING);
+  assert(strcmp(c_str_kstring(v->data.str), "hello") == 0);
+
+  kedis_keyspace_free(ks);
+  printf("test_keyspace_set_get_overwrite passed\n");
+}
+
+static void test_keyspace_del(void) {
+  Keyspace *ks = kedis_keyspace_create(8);
+
+  kedis_execute_command(ks, "SET foo 1");
+  assert(kedis_keyspace_get(ks, "foo") != NULL);
+
+  bool deleted = kedis_keyspace_del(ks, "foo");
+  assert(deleted);
+  assert(kedis_keyspace_get(ks, "foo") == NULL);
+
+  /* deleting again should report false, not crash */
+  assert(kedis_keyspace_del(ks, "foo") == false);
+
+  kedis_keyspace_free(ks);
+  printf("test_keyspace_del passed\n");
+}
+
+static void test_command_get_missing_key(void) {
+  Keyspace *ks = kedis_keyspace_create(8);
+  /* GET on a missing key should not crash and should return false
+   * only for genuinely malformed commands — a nil GET is not that. */
+  bool ok = kedis_execute_command(ks, "GET nope");
+  assert(ok);
+  kedis_keyspace_free(ks);
+  printf("test_command_get_missing_key passed\n");
+}
+
+static void test_command_unknown(void) {
+  Keyspace *ks = kedis_keyspace_create(8);
+  bool ok = kedis_execute_command(ks, "FROBNICATE foo");
+  assert(!ok);
+  kedis_keyspace_free(ks);
+  printf("test_command_unknown passed\n");
+}
+
 int main(void) {
   test_int_object();
   test_string_object();
   test_list_object_decrefs_children();
   test_hash_object_decrefs_children();
+  test_keyspace_set_get_overwrite();
+  test_keyspace_del();
+  test_command_get_missing_key();
+  test_command_unknown();
   printf("All tests passed\n");
   return 0;
 }

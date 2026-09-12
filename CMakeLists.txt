@@ -11,6 +11,15 @@ endif()
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+
+#--- AddressSanitizer (opt-in): cmake -B build -DENABLE_ASAN=ON ---
+option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
+if(ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address)
+endif()
+
+
 # --- Public headers ---
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -21,6 +30,8 @@ find_library(CDSA_LIB cdsa REQUIRED)
 add_executable(kedis-c
     src/main.c
     src/object.c
+    src/keyspace.c
+    src/command.c
 )
 target_link_libraries(kedis-c PRIVATE ${CDSA_LIB})
 
@@ -30,7 +41,10 @@ enable_testing()
 add_executable(test_main
     tests/test_main.c
     src/object.c
+    src/keyspace.c
+    src/command.c
 )
+
 target_link_libraries(test_main PRIVATE ${CDSA_LIB})
 
 add_test(NAME test_main COMMAND test_main)
