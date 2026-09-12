@@ -3,6 +3,7 @@
 
 #include "kedis-c/keyspace.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 /*
  * Kedis-C — basic command engine (Phase 1)
@@ -18,6 +19,6 @@
  * malformed/unknown command line (not on e.g. GET of a missing key —
  * that's a normal "(nil)" reply, not a failure).
  */
-bool kedis_execute_command(Keyspace *ks, const char *line);
+bool kedis_execute_command(Keyspace *ks, const char *line, FILE *out);
 
 #endif /* KEDIS_C_COMMAND_H */

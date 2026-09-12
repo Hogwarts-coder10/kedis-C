@@ -2,7 +2,7 @@
 #include "kedis-c/keyspace.h"
 #include <stdio.h>
 #include <string.h>
-#include <strings.h> // for strcasecmp function
+#include <strings.h> /* strcasecmp */
 
 /*
  * Kedis-C — entry point
@@ -13,7 +13,6 @@
  * of work per the README's roadmap — this is purely for exercising
  * the storage layer end to end while it's being built.
  */
-
 int main(void) {
   Keyspace *ks = kedis_keyspace_create(16);
   if (!ks) {
@@ -39,7 +38,7 @@ int main(void) {
     if (line[0] == '\0')
       continue; /* blank line */
 
-    kedis_execute_command(ks, line);
+    kedis_execute_command(ks, line, stdout);
   }
 
   kedis_keyspace_free(ks);

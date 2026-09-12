@@ -70,13 +70,13 @@ static void test_hash_object_decrefs_children(void) {
 static void test_keyspace_set_get_overwrite(void) {
   Keyspace *ks = kedis_keyspace_create(8);
 
-  kedis_execute_command(ks, "SET foo 42");
+  kedis_execute_command(ks, "SET foo 42", stdout);
   KedisObject *v = kedis_keyspace_get(ks, "foo");
   assert(v && v->type == KEDIS_TYPE_INT && v->data.ival == 42);
 
   /* Overwrite with a string — old int object should be decref'd/freed,
    * not leaked, and the key string should be reused, not re-strdup'd. */
-  kedis_execute_command(ks, "SET foo hello");
+  kedis_execute_command(ks, "SET foo hello", stdout);
   v = kedis_keyspace_get(ks, "foo");
   assert(v && v->type == KEDIS_TYPE_STRING);
   assert(strcmp(c_str_kstring(v->data.str), "hello") == 0);
@@ -88,7 +88,7 @@ static void test_keyspace_set_get_overwrite(void) {
 static void test_keyspace_del(void) {
   Keyspace *ks = kedis_keyspace_create(8);
 
-  kedis_execute_command(ks, "SET foo 1");
+  kedis_execute_command(ks, "SET foo 1", stdout);
   assert(kedis_keyspace_get(ks, "foo") != NULL);
 
   bool deleted = kedis_keyspace_del(ks, "foo");
@@ -106,7 +106,7 @@ static void test_command_get_missing_key(void) {
   Keyspace *ks = kedis_keyspace_create(8);
   /* GET on a missing key should not crash and should return false
    * only for genuinely malformed commands — a nil GET is not that. */
-  bool ok = kedis_execute_command(ks, "GET nope");
+  bool ok = kedis_execute_command(ks, "GET nope", stdout);
   assert(ok);
   kedis_keyspace_free(ks);
   printf("test_command_get_missing_key passed\n");
@@ -114,7 +114,7 @@ static void test_command_get_missing_key(void) {
 
 static void test_command_unknown(void) {
   Keyspace *ks = kedis_keyspace_create(8);
-  bool ok = kedis_execute_command(ks, "FROBNICATE foo");
+  bool ok = kedis_execute_command(ks, "FROBNICATE foo", stdout);
   assert(!ok);
   kedis_keyspace_free(ks);
   printf("test_command_unknown passed\n");

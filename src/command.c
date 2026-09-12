@@ -18,9 +18,9 @@ static bool parse_long(const char *s, long *out) {
   return true;
 }
 
-static void cmd_set(Keyspace *ks, char *key, char *value) {
+static void cmd_set(Keyspace *ks, char *key, char *value, FILE *out) {
   if (!key || !value) {
-    printf("(error) ERR wrong number of arguments for 'set' command\n");
+    fprintf(out, "(error) ERR wrong number of arguments for 'set' command\n");
     return;
   }
 
@@ -29,57 +29,58 @@ static void cmd_set(Keyspace *ks, char *key, char *value) {
                                               : kedis_create_str_object(value);
 
   if (!obj) {
-    printf("(error) ERR out of memory\n");
+    fprintf(out, "(error) ERR out of memory\n");
     return;
   }
 
   if (!kedis_keyspace_set(ks, key, obj)) {
     kedis_decr_ref(obj);
-    printf("(error) ERR failed to set key\n");
+    fprintf(out, "(error) ERR failed to set key\n");
     return;
   }
 
-  printf("OK\n");
+  fprintf(out, "OK\n");
 }
 
-static void cmd_get(Keyspace *ks, char *key) {
+static void cmd_get(Keyspace *ks, char *key, FILE *out) {
   if (!key) {
-    printf("(error) ERR wrong number of arguments for 'get' command\n");
+    fprintf(out, "(error) ERR wrong number of arguments for 'get' command\n");
     return;
   }
 
   KedisObject *obj = kedis_keyspace_get(ks, key);
   if (!obj) {
-    printf("(nil)\n");
+    fprintf(out, "(nil)\n");
     return;
   }
 
   switch (obj->type) {
   case KEDIS_TYPE_INT:
-    printf("(integer) %ld\n", obj->data.ival);
+    fprintf(out, "(integer) %ld\n", obj->data.ival);
     break;
   case KEDIS_TYPE_STRING:
-    printf("\"%s\"\n", c_str_kstring(obj->data.str));
+    fprintf(out, "\"%s\"\n", c_str_kstring(obj->data.str));
     break;
   case KEDIS_TYPE_LIST:
-    printf("(list with %zu elements)\n", cdsa_size_vector(obj->data.list));
+    fprintf(out, "(list with %zu elements)\n",
+            cdsa_size_vector(obj->data.list));
     break;
   case KEDIS_TYPE_HASH:
-    printf("(hash with %zu fields)\n", cdsa_size_hashmap(obj->data.hash));
+    fprintf(out, "(hash with %zu fields)\n", cdsa_size_hashmap(obj->data.hash));
     break;
   }
 }
 
-static void cmd_del(Keyspace *ks, char *key) {
+static void cmd_del(Keyspace *ks, char *key, FILE *out) {
   if (!key) {
-    printf("(error) ERR wrong number of arguments for 'del' command\n");
+    fprintf(out, "(error) ERR wrong number of arguments for 'del' command\n");
     return;
   }
-  printf("(integer) %d\n", kedis_keyspace_del(ks, key) ? 1 : 0);
+  fprintf(out, "(integer) %d\n", kedis_keyspace_del(ks, key) ? 1 : 0);
 }
 
-bool kedis_execute_command(Keyspace *ks, const char *line) {
-  if (!ks || !line)
+bool kedis_execute_command(Keyspace *ks, const char *line, FILE *out) {
+  if (!ks || !line || !out)
     return false;
 
   /* strtok mutates its input, so work on a local copy rather than
@@ -97,15 +98,19 @@ bool kedis_execute_command(Keyspace *ks, const char *line) {
   char *arg2 = strtok(NULL, " \t\r\n");
 
   if (strcasecmp(cmd, "SET") == 0) {
-    cmd_set(ks, arg1, arg2);
+    cmd_set(ks, arg1, arg2, out);
   } else if (strcasecmp(cmd, "GET") == 0) {
-    cmd_get(ks, arg1);
+    cmd_get(ks, arg1, out);
   } else if (strcasecmp(cmd, "DEL") == 0) {
-    cmd_del(ks, arg1);
+    cmd_del(ks, arg1, out);
   } else {
-    printf("(error) ERR unknown command '%s'\n", cmd);
+    fprintf(out, "(error) ERR unknown command '%s'\n", cmd);
+    fflush(out);
     return false;
   }
 
+  fflush(out); /* FILE* over a socket is fully-buffered, not line-buffered
+                * like a terminal — without this the client won't see the
+                * reply until the buffer fills. */
   return true;
 }
